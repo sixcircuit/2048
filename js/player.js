@@ -5,17 +5,18 @@ function GamePlayer(){
     this.screenActuator = new HTMLActuator();
     
     this.depth = 1;
+    this.sampleSize = 10;
     this.events = {};
     this.watch = false;
     this.watchDelay = 100;
     this.running = false;
     this.gameCount = 0;
+    this.winCount = 0;
     this.moveCount = 0;
     this.startTime = 0;
     this.totalMoves = 0;
     this.totalScore = 0;
     this.biggestTile = 0;
-    this.sampleSize = 500;
     this.bestScore = 0;
     this.manager = null;
 }
@@ -34,18 +35,33 @@ GamePlayer.prototype.actuate = function(board, game){
         this.bestScore = _.max(board.score, this.bestScore);
         this.biggestTile = _.max(board.biggestTile(), this.biggestTile);
 
-        _.onceEvery(this.gameCount, 1, function(){
+        _.onceEvery(this.gameCount, 5000, function(){
             _.log("game:", self.gameCount, "moves:", self.moveCount, "score:", board.score, "biggest tile:", board.biggestTile());
         });
 
         if(this.gameCount === this.sampleSize){
-            _.log("samples:", this.sampleSize, "gps:", this.gps(), "average moves:", Math.floor(this.totalMoves / this.gameCount), "average score:", Math.floor(this.totalScore / this.gameCount), "best score:", this.bestScore, "biggest tile:", this.biggestTile);
+            _.log("depth:", this.depth, "samples:", this.sampleSize, "win count:", this.winCount, "seconds per game:", this.secondsPerGame(), "average moves:", Math.floor(this.totalMoves / this.gameCount), "average score:", Math.floor(this.totalScore / this.gameCount), "best score:", this.bestScore, "biggest tile:", this.biggestTile);
+            this.gameCount = 0;
+            this.winCount = 0;
+            this.moveCount = 0;
+            this.startTime = 0;
+            this.totalMoves = 0;
+            this.totalScore = 0;
+            this.biggestTile = 0;
+            this.bestScore = 0;
+            this.depth++;
+            return this.restart(); 
         }else{
             return this.restart(); 
         }
 
-    }if(!board.won && this.running){
-        this.makeNextMove(board);
+    }else if(this.running){
+        if(board.won && !board.wonOnce){
+            this.winCount++;
+            board.wonOnce = true;
+            _.log("WON!");
+        }
+        if(!board.won || !this.watch){ this.makeNextMove(board); }
     }
 };
 
@@ -298,8 +314,8 @@ function scoreNumberOfNeighbors(board){
 }
 
 
-GamePlayer.prototype.gps = function(){
-    return(Math.floor(this.gameCount / ((_.timestamp() - this.startTime))));
+GamePlayer.prototype.secondsPerGame = function(){
+    return(Math.floor((_.timestamp() - this.startTime) / this.gameCount));
 };
 
 

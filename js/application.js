@@ -6,9 +6,10 @@ window.requestAnimationFrame(function () {
 
     var player = new GamePlayer();
 
-    //player.watch = true;
-    //player.watchDelay = 100;
+    player.watch = true;
+    player.watchDelay = 10;
    
+    player.depth = 3;
 
     $(".restart-button").click(function(){
         if(player.running){
@@ -20,20 +21,24 @@ window.requestAnimationFrame(function () {
         }
     });
 
-    var storageManager = {
-        getGameState : _.noop,
-        getBestScore : _.noop,
-        setBestScore : _.noop,
-        clearGameState : _.noop,
-        setGameState : _.noop
+    function MemoryStorageManager(){
+        this.bestScore = 0;
     };
 
-    //storageManager = new LocalStorageManager();
+    MemoryStorageManager.prototype.getGameState = _.noop;
+    MemoryStorageManager.prototype.getBestScore = function(){ return(this.bestScore); };
+    MemoryStorageManager.prototype.setBestScore = function(score){ this.bestScore = score; };
+    MemoryStorageManager.prototype.clearGameState = _.noop;
+    MemoryStorageManager.prototype.setGameState = _.noop;
+
+    var storageManager = new MemoryStorageManager();
+    // var storageManager = new LocalStorageManager();
 
     var manager = new GameManager(4, player, player, storageManager);
     
     player.manager = manager;
 
     manager.start();
+    player.start();
 
 });

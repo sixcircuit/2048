@@ -7,6 +7,7 @@ function GameBoard(data) {
         this.size = data.size || 4;
     }
 
+    this.maxTiles = this.size * this.size;
     this.startTiles = data.startTiles || 2;
 
     if (data.grid) { 

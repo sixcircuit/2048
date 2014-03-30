@@ -56,8 +56,8 @@ GameManager.prototype.setup = function () {
 
 // Sends the updated grid to the actuator
 GameManager.prototype.actuate = function () {
-    if (this.storageManager.getBestScore() < this.score) {
-        this.storageManager.setBestScore(this.score);
+    if (this.storageManager.getBestScore() < this.board.score) {
+        this.storageManager.setBestScore(this.board.score);
     }
 
     // Clear the state when the game is over (game over only, not win)

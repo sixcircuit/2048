@@ -15,8 +15,8 @@ function GamePlayer(){
     this.totalMoves = 0;
     this.totalScore = 0;
     this.sampleSize = 500;
-
-    _.nextTick(function(){ self.start(); });
+    this.bestScore = 0;
+    this.manager = null;
 }
 
 GamePlayer.prototype.continueGame = function(){ this.screenActuator.continueGame(); };
@@ -25,16 +25,22 @@ GamePlayer.prototype.actuate = function(board, game){
     var self = this;
     if(!this.running){ return; }
 
+    // it's helpful to have the board drawn first, so you can compare to the calculated moves
+    if(!game.terminated && this.watch){ this.screenActuator.actuate.apply(this.screenActuator, arguments); }
+
     if(game.terminated){ 
+        if(board.score > this.bestScore){ 
+            this.bestScore = board.score;
+        }
         this.totalScore += board.score;
         this.totalMoves += this.moveCount;
 
-        _.onceEvery(this.gameCount, 50, function(){
+        _.onceEvery(this.gameCount, 5, function(){
             _.log("game:", self.gameCount, "moves:", self.moveCount, "score:", board.score);
         });
 
         if(this.gameCount === this.sampleSize){
-            _.log("samples:", this.sampleSize, "gps:", this.gps(), "average moves:", Math.floor(this.totalMoves / this.gameCount), "average score:", Math.floor(this.totalScore / this.gameCount));
+            _.log("samples:", this.sampleSize, "gps:", this.gps(), "average moves:", Math.floor(this.totalMoves / this.gameCount), "average score:", Math.floor(this.totalScore / this.gameCount), "best score:", this.bestScore);
         }else{
             return this.restart(); // we return to avoid redrawing the screen for the end of game message
         }
@@ -42,9 +48,6 @@ GamePlayer.prototype.actuate = function(board, game){
     }else if(!board.won && this.running){
         this.makeNextMove(board);
     }
-    
-    // update screen
-    if(this.watch){ this.screenActuator.actuate.apply(this.screenActuator, arguments); }
 };
 
 GamePlayer.prototype.stop = function(){
@@ -72,6 +75,8 @@ GamePlayer.prototype.makeNextMove = function(board){
     if(self.watch){
         setTimeout(function(){ self.emit("move", move); }, self.watchDelay);
     }else{
+        // chrome likes to crash, this is about as fast as we can push it.
+        // it's hacky, but this fixes it.
         _.onceEvery(self.moveCount, 100, function(){
             _.nextTick(function(){ self.emit("move", move); });
         }, function(){
@@ -80,23 +85,23 @@ GamePlayer.prototype.makeNextMove = function(board){
     }
 };
 
-GamePlayer.prototype.bestMove = function(board, depth){
+GamePlayer.prototype.inspectTree = function(node){
+   _.each(node.moves, function(move){
+        if(move){ _.log("move:", move.move, "grid:", move.board.grid.cells); }
+    });
+};
+
+GamePlayer.prototype.bestMove = function(board){
     var self = this;
 
-    //var tree = self.makeTree(board, self.depth);
+    var tree = self.makeTree(board, self.depth-1);
 
-    //_.log(tree);
-
-    //debugger;
-
-    var bestMove = Math.floor(Math.random() * 4);
+    //var bestMove = Math.floor(Math.random() * 4);
  
-    /*
-    var bestScore = -1;
     var bestMove = 0;
-    _.each(grids.moves, function(move){
-        var score = self.bestLeaf(move);
-        //_.log("move:", move.move, "score:", score);
+    var bestScore = -1;
+    _.each(tree.moves, function(move){
+        var score = self.bestLeafScore(move);
         if(score > bestScore){
             bestScore = score;
             bestMove = move.move;
@@ -104,53 +109,50 @@ GamePlayer.prototype.bestMove = function(board, depth){
     });
 
     //_.log("best move:", bestMove, "score:", bestScore);
-    //_.log("");
-    */
+
     return(bestMove);
 };
 
 
-GamePlayer.prototype.makeTree = function(board, depth){
-    var node = { board: board };
+GamePlayer.prototype.makeTree = function(board, depth, move){
+    var self = this;
+
+    if(move === undefined){ move = null; }
+    var node = { board: board, move: move, moves:{} };
 
     var moves = [0, 1, 2, 3];
     _.each(moves, function(move){
         var currentBoard = board.clone();
         currentBoard.move(move, true);
-        node[move] = currentBoard;
+        if(!currentBoard.moved){ return; }
+
         if(!currentBoard.over && depth > 0){
-            return(self.makeTree(currentBoard, depth-1));
+            node.moves[move] = self.makeTree(currentBoard, depth-1, move);
+        }else{
+            node.moves[move] = { board: currentBoard, move: move };
         }
     });
+
+    return(node);
 };
 
-
-GamePlayer.prototype.bestLeaf = function(node){
+GamePlayer.prototype.bestLeafScore = function(node){
     var self = this;
 
-    var bestScore = -1;
+    if(!node.moves){ return(self.rateBoard(node.board)); }
 
-    if(node.moves){
-        _.each(node.moves, function(move){
-            score = self.bestLeaf(move);
-            if(score > bestScore){
-                bestScore = score;
-            }
-        });
-    }else if(node.game){
-        bestScore = self.rateGrid(node.game.grid.serialize());
-    }
+    var bestScore = -1;
+    _.each(node.moves, function(node){
+        score = self.bestLeafScore(node);
+        if(score > bestScore){
+            bestScore = score;
+        }
+    });
 
     return(bestScore);
 };
 
-GamePlayer.prototype.rateGrid = function(grid){
-    /*
-     [ { position: { x: 3, y: 0 }, value: 64 },
-       { position: { x: 3, y: 1 }, value: 32 },
-       { position: { x: 3, y: 2 }, value: 16 },
-       { position: { x: 3, y: 3 }, value: 4 } ] ] } 
-       */
+GamePlayer.prototype.rateBoard = function(board){
 
     var weights = {
         bigNumbersWeight : 0, 
@@ -160,14 +162,25 @@ GamePlayer.prototype.rateGrid = function(grid){
     };
 
     var score = (
-            (weights.numberOfTilesWeight * scoreNumberOfTiles(grid))
+            (weights.numberOfTilesWeight * scoreNumberOfTiles(board))
         //+   (weights.neighborWeight * scoreNumberOfNeighbors(grid))
-        +   (weights.goodNeighborWeight * scoreNumberOfGoodNeighbors(grid))
-        +   (weights.bigNumbersWeight * scoreBigNumbers(grid))
+        //+   (weights.goodNeighborWeight * scoreNumberOfGoodNeighbors(grid))
+        //+   (weights.bigNumbersWeight * scoreBigNumbers(grid))
     );
 
     return(score);
 };
+
+function scoreNumberOfTiles(board){
+    var score = 0;
+
+    board.eachCell(function(x, y, cell){
+        if(cell){ score++; }
+    });
+    
+    // smaller number of tiles are better
+    return(board.maxTiles - score);
+}
 
 // up down left rigth, no diagonal
 function getMoveNeighbors(x, y, grid){
@@ -196,7 +209,6 @@ function scoreBigNumbers(grid){
                 var val = matrix[x][y].value;
                 var distance = (10*valueDistance(val, 1));
                 score += distance; 
-                //_.log("val:", val, "distance:", distance);
             }
         }
     }
@@ -269,23 +281,6 @@ function scoreNumberOfGoodNeighbors(grid){
     return(score);
 }
 
-function scoreNumberOfTiles(grid){
-    var score = 0;
-    var size = grid.size;
-    var matrix = grid.cells;
-
-    for(var x = 0; x < size; x++){
-        for(var y = 0; y < size; y++){
-            if(matrix[x] && matrix[x][y]){
-                score++;
-            }
-        }
-    }
-
-    // smaller number of tiles are better
-    score = (size * size) - score;
-    return(score);
-}
 
 GamePlayer.prototype.gps = function(){
     return(Math.floor(this.gameCount / ((_.timestamp() - this.startTime))));
@@ -303,7 +298,7 @@ GamePlayer.prototype.start = function(){
     3, // Left
     */
 
-    this.makeNextMove();
+    this.makeNextMove(this.manager.board);
 
     /*
     this.inputManager.on("move", this.move.bind(this));

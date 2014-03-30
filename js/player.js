@@ -4,10 +4,9 @@ function GamePlayer(){
 
     this.screenActuator = new HTMLActuator();
     
-    this.watch = true;
-
-    this.depth = 2;
+    this.depth = 1;
     this.events = {};
+    this.watch = false;
     this.watchDelay = 100;
     this.running = false;
     this.gameCount = 0;
@@ -23,15 +22,16 @@ function GamePlayer(){
 GamePlayer.prototype.continueGame = function(){ this.screenActuator.continueGame(); };
 
 GamePlayer.prototype.actuate = function(board, game){
+    var self = this;
     if(!this.running){ return; }
 
     if(game.terminated){ 
         this.totalScore += board.score;
         this.totalMoves += this.moveCount;
 
-        //if((this.gameCount % 50) === 0){
-            _.log("game:", this.gameCount, "moves:", this.moveCount, "score:", board.score);
-        //}
+        _.onceEvery(this.gameCount, 50, function(){
+            _.log("game:", self.gameCount, "moves:", self.moveCount, "score:", board.score);
+        });
 
         if(this.gameCount === this.sampleSize){
             _.log("samples:", this.sampleSize, "gps:", this.gps(), "average moves:", Math.floor(this.totalMoves / this.gameCount), "average score:", Math.floor(this.totalScore / this.gameCount));
@@ -67,63 +67,63 @@ GamePlayer.prototype.makeNextMove = function(board){
     var self = this;
     self.moveCount++;
 
-    var move = Math.floor(Math.random() * 4);
- 
-    //var move = self.calculateBestMove();
-    _.log("move: ", move);
+    var move = self.bestMove(board);
 
     if(self.watch){
         setTimeout(function(){ self.emit("move", move); }, self.watchDelay);
     }else{
-        _.nextTick(function(){ self.emit("move", move); });
+        _.onceEvery(self.moveCount, 100, function(){
+            _.nextTick(function(){ self.emit("move", move); });
+        }, function(){
+            self.emit("move", move);
+        });
     }
 };
 
-function GameModel(initialData){
-
-    var mockStorageMananger = function(){
-        return({
-            getGameState : function(){ return(initialData); },
-            getBestScore : _.noop,
-            setBestScore : _.noop,
-            clearGameState : _.noop,
-            setGameState : _.noop
-        });
-    };
-
-    var mockActuate = function(){
-        return({
-            actuate: _.noop
-        });
-    };
-
-    var mockInput = function(){
-        return({
-            on : _.noop
-        });
-    };
-
-    return(new GameManager(4, mockInput, mockActuate, mockStorageMananger));
-}
-
-GamePlayer.prototype.makeNewGame = function(gameData, move){
-    var game = GameModel(gameData);
-    var moved = game.move(move, true);
-    if(moved){ return(game); }
-    else{ return(null); }
-};
-
-GamePlayer.prototype.fillMovesNode = function(gameData, node, depth){
+GamePlayer.prototype.bestMove = function(board, depth){
     var self = this;
-    if(depth === 0 || node.game === null){ return(node); }
-    var moves = [0, 1, 2, 3];
-    node.moves = {};
-    _.each(moves, function(move){
-        node.moves[move] = self.fillMovesNode(gameData, { move: move, game: self.makeNewGame(gameData, move) }, depth-1);;
+
+    //var tree = self.makeTree(board, self.depth);
+
+    //_.log(tree);
+
+    //debugger;
+
+    var bestMove = Math.floor(Math.random() * 4);
+ 
+    /*
+    var bestScore = -1;
+    var bestMove = 0;
+    _.each(grids.moves, function(move){
+        var score = self.bestLeaf(move);
+        //_.log("move:", move.move, "score:", score);
+        if(score > bestScore){
+            bestScore = score;
+            bestMove = move.move;
+        }
     });
 
-    return(node);
+    //_.log("best move:", bestMove, "score:", bestScore);
+    //_.log("");
+    */
+    return(bestMove);
 };
+
+
+GamePlayer.prototype.makeTree = function(board, depth){
+    var node = { board: board };
+
+    var moves = [0, 1, 2, 3];
+    _.each(moves, function(move){
+        var currentBoard = board.clone();
+        currentBoard.move(move, true);
+        node[move] = currentBoard;
+        if(!currentBoard.over && depth > 0){
+            return(self.makeTree(currentBoard, depth-1));
+        }
+    });
+};
+
 
 GamePlayer.prototype.bestLeaf = function(node){
     var self = this;
@@ -142,33 +142,6 @@ GamePlayer.prototype.bestLeaf = function(node){
     }
 
     return(bestScore);
-};
-
-GamePlayer.prototype.calculateBestMove = function(depth){
-    var self = this;
-
-    depth = depth || 1;
-
-    var grids = { moves: {} };
-
-    var gameData = self.manager.serialize();
-
-    self.fillMovesNode(gameData, grids, self.depth);
-
-    var bestScore = -1;
-    var bestMove = 0;
-    _.each(grids.moves, function(move){
-        var score = self.bestLeaf(move);
-        //_.log("move:", move.move, "score:", score);
-        if(score > bestScore){
-            bestScore = score;
-            bestMove = move.move;
-        }
-    });
-
-    //_.log("best move:", bestMove, "score:", bestScore);
-    //_.log("");
-    return(bestMove);
 };
 
 GamePlayer.prototype.rateGrid = function(grid){

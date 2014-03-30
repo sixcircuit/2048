@@ -4,8 +4,6 @@ window.requestAnimationFrame(function () {
     //HTMLActuator
 
     var player = new GamePlayer();
-    // the game manager makes instances of the classes, I want to have the actuator, and controller in the same class
-    function playerSingleton(){ return(player); }
    
     $(".restart-button").click(function(){
         if(player.running){
@@ -17,8 +15,10 @@ window.requestAnimationFrame(function () {
         }
     });
 
-    new GameManager(4, playerSingleton, playerSingleton, LocalStorageManager);
+    var manager = new GameManager(4, player, player, new LocalStorageManager());
+    
+    player.manager = manager;
+
+    manager.start();
+
 });
-KeyboardInputManager.prototype.bindButtonPress = function (selector, fn) {
-  button.addEventListener(this.eventTouchend, fn.bind(this));
-};

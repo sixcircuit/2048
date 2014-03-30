@@ -7,27 +7,25 @@ function HTMLActuator() {
   this.score = 0;
 }
 
-HTMLActuator.prototype.actuate = function (grid, metadata) {
+HTMLActuator.prototype.actuate = function (board, metadata) {
   var self = this;
 
   window.requestAnimationFrame(function () {
     self.clearContainer(self.tileContainer);
 
-    grid.cells.forEach(function (column) {
-      column.forEach(function (cell) {
+    board.eachCell(function(x, y, cell) {
         if (cell) {
           self.addTile(cell);
         }
-      });
     });
 
-    self.updateScore(metadata.score);
+    self.updateScore(board.score);
     self.updateBestScore(metadata.bestScore);
 
-    if (metadata.terminated) {
-      if (metadata.over) {
+    if (board.terminated) {
+      if (board.over) {
         self.message(false); // You lose
-      } else if (metadata.won) {
+      } else if (board.won) {
         self.message(true); // You win!
       }
     }

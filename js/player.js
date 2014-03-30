@@ -14,6 +14,7 @@ function GamePlayer(){
     this.startTime = 0;
     this.totalMoves = 0;
     this.totalScore = 0;
+    this.biggestTile = 0;
     this.sampleSize = 500;
     this.bestScore = 0;
     this.manager = null;
@@ -25,29 +26,35 @@ GamePlayer.prototype.actuate = function(board, game){
     var self = this;
     if(!this.running){ return; }
 
-    // it's helpful to have the board drawn first, so you can compare to the calculated moves
-    if(!game.terminated && this.watch){ this.screenActuator.actuate.apply(this.screenActuator, arguments); }
+    if(!board.over && this.watch){ self.screenActuator.actuate.apply(this.screenActuator, arguments); }
 
-    if(game.terminated){ 
-        if(board.score > this.bestScore){ 
-            this.bestScore = board.score;
-        }
+    if(board.over){ 
         this.totalScore += board.score;
         this.totalMoves += this.moveCount;
+        this.bestScore = _.max(board.score, this.bestScore);
+        this.biggestTile = _.max(board.biggestTile(), this.biggestTile);
 
-        _.onceEvery(this.gameCount, 5, function(){
-            _.log("game:", self.gameCount, "moves:", self.moveCount, "score:", board.score);
+        _.onceEvery(this.gameCount, 1, function(){
+            _.log("game:", self.gameCount, "moves:", self.moveCount, "score:", board.score, "biggest tile:", board.biggestTile());
         });
 
         if(this.gameCount === this.sampleSize){
-            _.log("samples:", this.sampleSize, "gps:", this.gps(), "average moves:", Math.floor(this.totalMoves / this.gameCount), "average score:", Math.floor(this.totalScore / this.gameCount), "best score:", this.bestScore);
+            _.log("samples:", this.sampleSize, "gps:", this.gps(), "average moves:", Math.floor(this.totalMoves / this.gameCount), "average score:", Math.floor(this.totalScore / this.gameCount), "best score:", this.bestScore, "biggest tile:", this.biggestTile);
         }else{
-            return this.restart(); // we return to avoid redrawing the screen for the end of game message
+            return this.restart(); 
         }
 
-    }else if(!board.won && this.running){
+    }if(!board.won && this.running){
         this.makeNextMove(board);
     }
+};
+
+GamePlayer.prototype.start = function(){
+    this.running = true;
+    this.gameCount++;
+    this.startTime = _.timestamp();
+
+    this.makeNextMove(this.manager.board);
 };
 
 GamePlayer.prototype.stop = function(){
@@ -123,7 +130,8 @@ GamePlayer.prototype.makeTree = function(board, depth, move){
     var moves = [0, 1, 2, 3];
     _.each(moves, function(move){
         var currentBoard = board.clone();
-        currentBoard.move(move, true);
+        //currentBoard.move(move, true);
+        currentBoard.move(move);
         if(!currentBoard.moved){ return; }
 
         if(!currentBoard.over && depth > 0){
@@ -155,17 +163,22 @@ GamePlayer.prototype.bestLeafScore = function(node){
 GamePlayer.prototype.rateBoard = function(board){
 
     var weights = {
-        bigNumbersWeight : 0, 
+        bigNumbersWeight : 1, 
         numberOfTilesWeight : 1, 
-        goodNeighborWeight : 0,
+        goodNeighborWeight : 1,
+        emptySpacesWeight : 1,
+        crowdingWeight : 1,
         neighborWeight : 0
     };
 
     var score = (
-            (weights.numberOfTilesWeight * scoreNumberOfTiles(board))
-        //+   (weights.neighborWeight * scoreNumberOfNeighbors(grid))
-        //+   (weights.goodNeighborWeight * scoreNumberOfGoodNeighbors(grid))
-        //+   (weights.bigNumbersWeight * scoreBigNumbers(grid))
+        0
+        +(weights.numberOfTilesWeight * scoreNumberOfTiles(board))
+        +(weights.bigNumbersWeight * scoreBigNumbers(board))
+        +(weights.crowdingWeight * scoreCrowding(board))
+        //+(weights.emptySpacesWeight * scoreEmptySpaces(board))
+        //+(weights.goodNeighborWeight * scoreNumberOfGoodNeighbors(board))
+        //+(weights.neighborWeight * scoreNumberOfNeighbors(grid))
     );
 
     return(score);
@@ -182,61 +195,70 @@ function scoreNumberOfTiles(board){
     return(board.maxTiles - score);
 }
 
-// up down left rigth, no diagonal
-function getMoveNeighbors(x, y, grid){
+function scoreCrowding(board){
+    var score = 0;
+    var tiles = 0;
 
-    var size = grid.size;
-    var matrix = grid.cells;
+    board.eachCell(function(x, y, cell){
+        if(!cell){ return; }
+        tiles++;
+        var neighbors = board.neighbors(x, y);
+        _.each(neighbors, function(cell){
+            if(cell){ score++; }
+        });
+    });
 
-    var neighbors = [];
-
-    if(x-1 > 0){ neighbors.push(matrix[x-1][y]); }
-    if(x+1 < size){ neighbors.push(matrix[x+1][y]); }
-    if(y-1 > 0){ neighbors.push(matrix[x][y-1]); }
-    if(y+1 < size){ neighbors.push(matrix[x][y+1]); }
-
-    return(neighbors);
+    // "like" fewer tiles with higher crowding
+    score = (board.maxTiles - tiles) * score
+    
+    return(score);
 }
 
-function scoreBigNumbers(grid){
-    var score = 0;
-    var size = grid.size;
-    var matrix = grid.cells;
 
-    for(var x = 0; x < size; x++){
-        for(var y = 0; y < size; y++){
-            if(matrix[x][y] &&  matrix[x][y].value){
-                var val = matrix[x][y].value;
-                var distance = (10*valueDistance(val, 1));
-                score += distance; 
-            }
+function scoreEmptySpaces(board){
+    var score = 0;
+
+    /*
+    board.eachCell(function(x, y, cell){
+        if(cell){
+        var neighbors = getMoveNeighbors(x, y, board);
+        score += (4 - neighbors.length);
         }
-    }
+    });
+    */
+    
+    return(score);
+}
+
+function scoreBigNumbers(board){
+    var score = 0;
+
+    board.eachCell(function(x, y, cell){
+        if(cell && cell.value){
+            var distance = Math.pow(cell.value, 2);
+            score += distance; 
+        }
+    });
 
     return(score);
 }
 
-function scoreNumberOfPossibleMatches(){ }
-
-// fewer the better
-function scoreNumberOfNeighbors(grid){
+function scoreNumberOfGoodNeighbors(board){
     var score = 0;
-    var max = 0;
-    var size = grid.size;
-    var matrix = grid.cells;
 
-    for(var x = 0; x < size; x++){
-        for(var y = 0; y < size; y++){
-            if(matrix[x][y]){
-                var moveNeighbors = getMoveNeighbors(x, y, grid);
-                max += moveNeighbors.length;
-                _.each(moveNeighbors, function(neighbor){
-                    if(!neighbor){ score++; }
-                });
+    board.eachCell(function(x, y, cell){
+        var neighbors = board.neighbors(x, y);
+        // the expected value of the empty cell is 2 *.9 + 4*.1
+        if(!cell){ cell = {value : 2}; }
+        _.each(neighbors, function(neighbor){
+            if(neighbor){ 
+                // 2048 = 2^11
+                score += (11 - valueDistance(cell.value, neighbor.value));
             }
-        }
-    }
+        });
+    });
 
+    score = Math.ceil(score/board.maxTiles)
     return(score);
 }
 
@@ -256,28 +278,22 @@ function valueDistance(a, b){
     return(distance);
 }
 
-function scoreNumberOfGoodNeighbors(grid){
+function scoreNumberOfPossibleMatches(){ }
+
+// fewer the better
+function scoreNumberOfNeighbors(board){
     var score = 0;
-    var size = grid.size;
-    var matrix = grid.cells;
 
-    for(var x = 0; x < size; x++){
-        for(var y = 0; y < size; y++){
-            var cell = matrix[x][y];
-            //if(!cell){ cell = { value : 2 }; }
-            if(!cell){ continue; }
-            var moveNeighbors = getMoveNeighbors(x, y, grid);
-            _.each(moveNeighbors, function(neighbor){
-                if(neighbor){ 
-                    // 2048 = 2^11
-                    score += (11 - valueDistance(cell.value, neighbor.value));
-                }
-            });
-        }
-    }
+    /*
+    board.eachCell(function(x, y, cell){
+        var neighbors = board.neighbors(x, y);
+        max += neighbors.length;
+        _.each(neighbors, function(neighbor){
+            if(!neighbor){ score++; }
+        });
+    });
+    */
 
-    score = Math.ceil(score/(size * size))
-    //_.log(score);
     return(score);
 }
 
@@ -286,26 +302,6 @@ GamePlayer.prototype.gps = function(){
     return(Math.floor(this.gameCount / ((_.timestamp() - this.startTime))));
 };
 
-GamePlayer.prototype.start = function(){
-    this.running = true;
-    this.gameCount++;
-    this.startTime = _.timestamp();
-
-    /*
-    0, // Up
-    1, // Right
-    2, // Down
-    3, // Left
-    */
-
-    this.makeNextMove(this.manager.board);
-
-    /*
-    this.inputManager.on("move", this.move.bind(this));
-    this.inputManager.on("restart", this.restart.bind(this));
-    this.inputManager.on("keepPlaying", this.keepPlaying.bind(this));
-    */
-};
 
 GamePlayer.prototype.on = function (event, callback) {
   if (!this.events[event]) {

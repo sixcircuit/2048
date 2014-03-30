@@ -9,7 +9,8 @@ window.requestAnimationFrame(function () {
     player.watch = true;
     player.watchDelay = 10;
    
-    player.depth = 3;
+    player.depth = 1; // won with 3
+    //player.sampleSize = 5;
 
     $(".restart-button").click(function(){
         if(player.running){

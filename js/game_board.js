@@ -85,6 +85,40 @@ GameBoard.prototype.prepareTiles = function () {
     });
 };
 
+
+GameBoard.prototype.neighbors = function(x, y, diagonal){
+
+    var size = this.grid.size;
+    var matrix = this.grid.cells;
+
+    var neighbors = [];
+
+    // up, down, left, right
+    if(x-1 > 0){ neighbors.push(matrix[x-1][y]); }
+    if(x+1 < size){ neighbors.push(matrix[x+1][y]); }
+    if(y-1 > 0){ neighbors.push(matrix[x][y-1]); }
+    if(y+1 < size){ neighbors.push(matrix[x][y+1]); }
+
+    if(diagonal){
+        if(x-1 > 0 && y-1 > 0){ neighbors.push(matrix[x-1][y-1]); }
+        if(x+1 < size && y+1 < size){ neighbors.push(matrix[x+1][y+1]); }
+        if(y-1 > 0 && x+1 < size ){ neighbors.push(matrix[x+1][y-1]); }
+        if(y+1 < size && x-1 > 0){ neighbors.push(matrix[x-1][y+1]); }
+    }
+
+    return(neighbors);
+}
+
+GameBoard.prototype.biggestTile = function(){
+    var max = 0;
+    this.eachCell(function(x, y, cell){
+        if(cell){
+            max = _.max(max, cell.value);
+        }
+    });
+    return(max);
+}
+
 // Move a tile and its representation
 GameBoard.prototype.moveTile = function (tile, cell) {
     this.grid.cells[tile.x][tile.y] = null;

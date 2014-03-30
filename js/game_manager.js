@@ -189,9 +189,9 @@ GameManager.prototype.move = function (direction) {
     if (!this.movesAvailable()) {
       this.over = true; // Game over!
     }
-
-    this.actuate();
   }
+  // update screen no matter what
+    this.actuate();
 };
 
 // Get the vector representing the chosen direction

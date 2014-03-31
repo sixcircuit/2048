@@ -5,7 +5,7 @@ function GamePlayer(){
     this.screenActuator = new HTMLActuator();
     
     this.depth = 1;
-    this.sampleSize = 10;
+    this.sampleSize = 100;
     this.events = {};
     this.watch = false;
     this.watchDelay = 100;
@@ -21,7 +21,10 @@ function GamePlayer(){
     this.manager = null;
 }
 
-GamePlayer.prototype.continueGame = function(){ this.screenActuator.continueGame(); };
+GamePlayer.prototype.continueGame = function(){
+    this.manager.keepPlaying = true;
+    this.screenActuator.continueGame();
+};
 
 GamePlayer.prototype.actuate = function(board, game){
     var self = this;
@@ -35,8 +38,9 @@ GamePlayer.prototype.actuate = function(board, game){
         this.bestScore = _.max(board.score, this.bestScore);
         this.biggestTile = _.max(board.biggestTile(), this.biggestTile);
 
-        _.onceEvery(this.gameCount, 5000, function(){
+        _.onceEvery(this.gameCount, 1, function(){
             _.log("game:", self.gameCount, "moves:", self.moveCount, "score:", board.score, "biggest tile:", board.biggestTile());
+            _.log("running: depth:", self.depth, "win count:", self.winCount, "seconds per game:", self.secondsPerGame(), "average moves:", Math.floor(self.totalMoves / self.gameCount), "average score:", Math.floor(self.totalScore / self.gameCount), "best score:", self.bestScore, "biggest tile:", self.biggestTile);
         });
 
         if(this.gameCount === this.sampleSize){
@@ -56,12 +60,16 @@ GamePlayer.prototype.actuate = function(board, game){
         }
 
     }else if(this.running){
-        if(board.won && !board.wonOnce){
-            this.winCount++;
-            board.wonOnce = true;
+        if(board.won && !self.manager.keepPlaying){
             _.log("WON!");
+            this.winCount++;
+            setTimeout(function(){
+                self.continueGame();
+                self.makeNextMove(board);
+            }, 3000);
+        }else{
+            this.makeNextMove(board);
         }
-        if(!board.won || !this.watch){ this.makeNextMove(board); }
     }
 };
 
@@ -146,8 +154,13 @@ GamePlayer.prototype.makeTree = function(board, depth, move){
     var moves = [0, 1, 2, 3];
     _.each(moves, function(move){
         var currentBoard = board.clone();
-        //currentBoard.move(move, true);
+        
+        // add random tiles
         currentBoard.move(move);
+       
+        // don't add random tiles
+        //currentBoard.move(move, true);
+
         if(!currentBoard.moved){ return; }
 
         if(!currentBoard.over && depth > 0){
@@ -230,6 +243,19 @@ function scoreCrowding(board){
     return(score);
 }
 
+function scoreBigNumbers(board){
+    var score = 0;
+
+    board.eachCell(function(x, y, cell){
+        if(cell && cell.value){
+            var distance = Math.pow(cell.value, 2);
+            score += distance; 
+        }
+    });
+
+    return(score);
+}
+
 
 function scoreEmptySpaces(board){
     var score = 0;
@@ -246,18 +272,6 @@ function scoreEmptySpaces(board){
     return(score);
 }
 
-function scoreBigNumbers(board){
-    var score = 0;
-
-    board.eachCell(function(x, y, cell){
-        if(cell && cell.value){
-            var distance = Math.pow(cell.value, 2);
-            score += distance; 
-        }
-    });
-
-    return(score);
-}
 
 function scoreNumberOfGoodNeighbors(board){
     var score = 0;

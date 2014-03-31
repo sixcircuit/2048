@@ -7,20 +7,10 @@ window.requestAnimationFrame(function () {
     var player = new GamePlayer();
 
     player.watch = true;
-    player.watchDelay = 10;
+    player.watchDelay = 100;
    
-    player.depth = 3; // won with 3
+    player.depth = 4; // won with 3, never with 2
     //player.sampleSize = 5;
-
-    $(".restart-button").click(function(){
-        if(player.running){
-            player.stop();
-            $(".restart-button").html("Start Player");
-        }else{
-            player.start();
-            $(".restart-button").html("Stop Player");
-        }
-    });
 
     function MemoryStorageManager(){
         this.bestScore = 0;
@@ -41,5 +31,20 @@ window.requestAnimationFrame(function () {
 
     manager.start();
     player.start();
+
+    $(".start-button").click(function(){
+        if(player.running){
+            player.stop();
+            $(".start-button").html("Start");
+        }else{
+            player.start();
+            $(".start-button").html("Stop");
+        }
+    });
+
+    $(".really-slow-button").click(function(){ player.watchDelay = 1000; });
+    $(".slow-button").click(function(){ player.watchDelay = 500; });
+    $(".medium-button").click(function(){ player.watchDelay = 100; });
+    $(".fast-button").click(function(){ player.watchDelay = 10; });
 
 });

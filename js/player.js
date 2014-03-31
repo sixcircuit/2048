@@ -329,7 +329,7 @@ function scoreNumberOfNeighbors(board){
 
 
 GamePlayer.prototype.secondsPerGame = function(){
-    return(Math.floor((_.timestamp() - this.startTime) / this.gameCount));
+    return(Math.floor(((_.timestamp() - this.startTime) / this.gameCount)/1000));
 };
 
 

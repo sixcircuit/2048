@@ -46,7 +46,7 @@ GameManager.prototype.setup = function () {
         this.board = new GameBoard(previousState.board); 
         this.keepPlaying = previousState.keepPlaying;
     } else {
-        this.board = new GameBoard(this.size);
+        this.board = new GameBoard({ size: this.size });
         this.keepPlaying = false;
     }
 

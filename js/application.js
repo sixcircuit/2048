@@ -26,7 +26,7 @@ window.requestAnimationFrame(function () {
     var storageManager = new MemoryStorageManager();
     // var storageManager = new LocalStorageManager();
 
-    var manager = new GameManager(4, player, player, storageManager);
+    var manager = new GameManager(8, player, player, storageManager);
     
     player.manager = manager;
 

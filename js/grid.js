@@ -1,6 +1,11 @@
-function Grid(size, previousState) {
-  this.size = size;
-  this.cells = previousState ? this.fromState(previousState) : this.empty();
+function Grid(data) {
+    if(_.isNumber(data)){
+        this.size = data;
+        this.cells = this.empty();
+    }else if(_.isObject(data)){
+        this.size = data.size;
+        this.cells = this.fromState(data.cells);
+    }
 }
 
 // Build a grid of the specified size

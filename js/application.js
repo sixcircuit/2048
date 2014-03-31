@@ -10,6 +10,7 @@ window.requestAnimationFrame(function () {
     player.watchDelay = 100;
    
     player.depth = 4; // won with 3, never with 2
+    player.sampleSize = -1; // forever
     //player.sampleSize = 5;
 
     function MemoryStorageManager(){

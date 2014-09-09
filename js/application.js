@@ -7,7 +7,8 @@ window.requestAnimationFrame(function () {
     var player = new GamePlayer();
 
     player.watch = true;
-    player.watchDelay = 100;
+    player.watchMode = true;
+    player.watchDelay = 10;
    
     player.depth = 4; // won with 3, never with 2
     player.sampleSize = -1; // forever
@@ -43,9 +44,24 @@ window.requestAnimationFrame(function () {
         }
     });
 
-    $(".really-slow-button").click(function(){ player.watchDelay = 1000; });
-    $(".slow-button").click(function(){ player.watchDelay = 500; });
-    $(".medium-button").click(function(){ player.watchDelay = 100; });
-    $(".fast-button").click(function(){ player.watchDelay = 10; });
+    $(".watch-button").click(function(){ 
+        player.watchMode = true;
+    });
+    $(".really-slow-button").click(function(){ 
+        player.watchDelay = 1000;
+        player.watchMode = false;
+    });
+    $(".slow-button").click(function(){ 
+        player.watchDelay = 500;
+        player.watchMode = false;
+    });
+    $(".medium-button").click(function(){ 
+        player.watchDelay = 100;
+        player.watchMode = false;
+    });
+    $(".fast-button").click(function(){ 
+        player.watchDelay = 10;
+        player.watchMode = false;
+    });
 
 });

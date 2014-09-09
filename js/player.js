@@ -104,6 +104,23 @@ GamePlayer.prototype.makeNextMove = function(board){
     var move = self.bestMove(board);
 
     if(self.watch){
+        if(self.watchMode){
+            var level = 0;
+            board.eachCell(function(x, y, cell){
+                if(cell && cell.value){
+                    level += cell.value;
+                }
+            });
+
+            if(level > (1024 + 512)){
+                self.watchDelay = 500;
+            }else if(level > (1024)){
+                self.watchDelay = 100;
+            }else{
+                self.watchDelay = 10;
+            }
+        }
+
         setTimeout(function(){ self.emit("move", move); }, self.watchDelay);
     }else{
         // chrome likes to crash, this is about as fast as we can push it.

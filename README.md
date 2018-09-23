@@ -14,7 +14,7 @@ Enjoy.
 
 Also, my layout changes aren't in the scss files, only the main.css file. Shit's weak. I know. If you want to be awesome, fix the layout, which is kinda busted anyway.
 
-[Watch it play here!](http://sktaylor.github.io/2048/)
+[Watch it play here!](http://sixcircuit.github.io/2048/)
 
 You can play the original [here](http://gabrielecirulli.github.io/2048/).
 
